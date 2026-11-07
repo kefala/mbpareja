@@ -11,6 +11,7 @@ import {
   withApiAuth
 } from '@/lib/api'
 import { budgetMonthsCol, categoriesCol, expensesCol } from '@/lib/collections'
+import { mergeBudgetLines } from '@/lib/indicators'
 import { formatDateOnly, isValidYearMonth } from '@/lib/months'
 import { getDb } from '@/lib/mongodb'
 import { buildMonthIndicators, listAllCategories } from '@/lib/queries'
@@ -88,13 +89,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const byId = new Map(body.data.lines.map((l) => [l.categoryId, l.amountCents]))
-      // Conservar líneas de categorías ya presentes + actualizaciones
-      const merged = new Map(month.lines.map((l) => [l.categoryId, l.amountCents]))
-      for (const [id, cents] of byId) merged.set(id, cents)
-      const lines = [...merged.entries()].map(([categoryId, amountCents]) => ({
-        categoryId,
-        amountCents
-      }))
+      const mergedAmounts = new Map(month.lines.map((l) => [l.categoryId, l.amountCents]))
+      for (const [id, cents] of byId) mergedAmounts.set(id, cents)
+      const lines = mergeBudgetLines({
+        previous: month.lines,
+        nextAmounts: [...mergedAmounts.entries()].map(([categoryId, amountCents]) => ({
+          categoryId,
+          amountCents
+        }))
+      })
 
       await budgetMonthsCol(db).updateOne(
         { _id: month._id },

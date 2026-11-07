@@ -262,6 +262,49 @@ table.data tr.is-over td {
   background: #fff7ed;
 }
 
+table.data tr.is-spent-closed td {
+  opacity: 0.78;
+}
+
+.cat-lock-cell {
+  width: 44px;
+  padding-right: 0 !important;
+}
+
+.btn-lock {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-lock--on {
+  background: var(--accent-soft);
+  border-color: #5eead4;
+}
+
+.btn-lock:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.spent-closed-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .muted {
   color: var(--muted);
   font-size: 13px;

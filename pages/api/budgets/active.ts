@@ -9,6 +9,7 @@ import {
   withApiAuth
 } from '@/lib/api'
 import { budgetMonthsCol } from '@/lib/collections'
+import { mergeBudgetLines } from '@/lib/indicators'
 import { getDb } from '@/lib/mongodb'
 import { buildMonthIndicators, getActiveBudgetMonth, listActiveCategories } from '@/lib/queries'
 
@@ -53,10 +54,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const byId = new Map(body.data.lines.map((l) => [l.categoryId, l.amountCents]))
-      const lines = [...activeCats].map((categoryId) => ({
-        categoryId,
-        amountCents: byId.get(categoryId) ?? 0
-      }))
+      const lines = mergeBudgetLines({
+        previous: month.lines,
+        nextAmounts: [...activeCats].map((categoryId) => ({
+          categoryId,
+          amountCents: byId.get(categoryId) ?? 0
+        }))
+      })
 
       await budgetMonthsCol(db).updateOne(
         { _id: month._id },
