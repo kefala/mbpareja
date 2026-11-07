@@ -10,7 +10,7 @@ import {
   parseEurosToCents
 } from '@/lib/money'
 import { labelYearMonthShort } from '@/lib/months'
-import type { MonthIndicators } from '@/types/domain'
+import type { CategoryRowStats, MonthIndicators } from '@/types/domain'
 
 interface Category {
   id: string
@@ -23,6 +23,14 @@ interface DashboardData {
   categories: Category[]
 }
 
+type CategoryStatus = 'over' | 'ok' | 'zero'
+
+interface CategoryGroup {
+  status: CategoryStatus
+  title: string
+  rows: CategoryRowStats[]
+}
+
 function todayIso(): string {
   const d = new Date()
   const y = d.getFullYear()
@@ -33,6 +41,35 @@ function todayIso(): string {
 
 function formatAdjustInput(cents: number): string {
   return centsToEuros(cents).toFixed(2).replace('.', ',')
+}
+
+function categoryStatus(row: CategoryRowStats): CategoryStatus {
+  if (row.spentCents > row.budgetCents || row.remainingEffectiveCents < 0) return 'over'
+  if (row.remainingEffectiveCents === 0) return 'zero'
+  return 'ok'
+}
+
+function statusLabel(status: CategoryStatus): string {
+  if (status === 'over') return 'Excedida'
+  if (status === 'zero') return 'Previsto 0'
+  return 'En curso'
+}
+
+function groupCategories(rows: CategoryRowStats[]): CategoryGroup[] {
+  const over: CategoryRowStats[] = []
+  const ok: CategoryRowStats[] = []
+  const zero: CategoryRowStats[] = []
+  for (const row of rows) {
+    const s = categoryStatus(row)
+    if (s === 'over') over.push(row)
+    else if (s === 'zero') zero.push(row)
+    else ok.push(row)
+  }
+  const out: CategoryGroup[] = []
+  if (over.length) out.push({ status: 'over', title: 'Excedidas', rows: over })
+  if (ok.length) out.push({ status: 'ok', title: 'En curso', rows: ok })
+  if (zero.length) out.push({ status: 'zero', title: 'Restante previsto 0', rows: zero })
+  return out
 }
 
 export default function DashboardPage() {
@@ -255,132 +292,157 @@ export default function DashboardPage() {
         <section className="panel">
           <h2>Por categoría</h2>
           <p className="muted" style={{ marginTop: 0 }}>
-            «Restante previsto» se puede ajustar si sabes que gastarás más o menos, sin tocar el
-            presupuesto. Pendiente y margen usan ese valor (solo positivos).
+            Rojo = excedida · Verde = en curso · Gris = restante previsto 0. Puedes ajustar el
+            restante previsto sin tocar el presupuesto.
           </p>
-          <div className="cat-list">
-            {ind?.byCategory.map((row) => {
-              const isEditing = editingId === row.categoryId
-              const hasAdjust = row.remainingAdjustCents !== 0
-              return (
-                <article
-                  key={row.categoryId}
-                  className={[
-                    'cat-card',
-                    row.overBudget ? 'cat-card--over' : '',
-                    hasAdjust ? 'cat-card--adjusted' : ''
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}>
-                  <header className="cat-card__head">
-                    <h3 className="cat-card__title">{row.name}</h3>
-                    {hasAdjust ? (
-                      <span className="cat-card__badge">ajustado</span>
-                    ) : null}
-                  </header>
-                  <div className="cat-card__grid">
-                    <div>
-                      <span className="cat-card__label">Presup.</span>
-                      <span className="cat-card__value">
-                        {formatCentsCurrency(row.budgetCents)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="cat-card__label">Gastado</span>
-                      <span className="cat-card__value">
-                        {formatCentsCurrency(row.spentCents)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="cat-card__label">Restante bruto</span>
-                      <span className="cat-card__value">
-                        {formatCentsCurrency(row.remainingRawCents)}
-                      </span>
-                    </div>
-                  </div>
+          <div className="cat-groups">
+            {ind
+              ? groupCategories(ind.byCategory).map((group) => (
+                  <div key={group.status} className="cat-group">
+                    <h3 className={`cat-group__title cat-group__title--${group.status}`}>
+                      {group.title}
+                      <span className="cat-group__count">{group.rows.length}</span>
+                    </h3>
+                    <ul className="cat-list">
+                      {group.rows.map((row) => {
+                        const isEditing = editingId === row.categoryId
+                        const hasAdjust = row.remainingAdjustCents !== 0
+                        const status = categoryStatus(row)
+                        return (
+                          <li
+                            key={row.categoryId}
+                            className={`cat-row cat-row--${status}`}>
+                            <header className="cat-row__head">
+                              <div className="cat-row__name-wrap">
+                                <span className="cat-row__name">{row.name}</span>
+                                <span className={`cat-status cat-status--${status}`}>
+                                  {statusLabel(status)}
+                                </span>
+                                {hasAdjust ? (
+                                  <span className="cat-status cat-status--adjust">Ajuste</span>
+                                ) : null}
+                              </div>
+                            </header>
+                            <div className="cat-row__grid">
+                              <div>
+                                <span className="cat-row__label">Presup.</span>
+                                <span className="cat-row__value">
+                                  {formatCentsCurrency(row.budgetCents)}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="cat-row__label">Gastado</span>
+                                <span
+                                  className={
+                                    row.spentCents > row.budgetCents
+                                      ? 'cat-row__value cat-row__value--danger'
+                                      : 'cat-row__value'
+                                  }>
+                                  {formatCentsCurrency(row.spentCents)}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="cat-row__label">Bruto</span>
+                                <span className="cat-row__value">
+                                  {formatCentsCurrency(row.remainingRawCents)}
+                                </span>
+                              </div>
+                            </div>
 
-                  <div className="cat-card__expected">
-                    <label className="cat-card__label" htmlFor={`exp-${row.categoryId}`}>
-                      Restante previsto (€)
-                    </label>
-                    {isEditing ? (
-                      <div className="row" style={{ marginTop: 6 }}>
-                        <input
-                          id={`exp-${row.categoryId}`}
-                          className="cat-card__input"
-                          inputMode="decimal"
-                          value={expectedDraft}
-                          disabled={savingAdjust}
-                          onChange={(e) => setExpectedDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              void saveExpected(
-                                row.categoryId,
-                                row.remainingRawCents,
-                                expectedDraft
-                              )
-                            }
-                            if (e.key === 'Escape') setEditingId('')
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="btn btn--primary btn--sm"
-                          disabled={savingAdjust}
-                          onClick={() =>
-                            void saveExpected(
-                              row.categoryId,
-                              row.remainingRawCents,
-                              expectedDraft
-                            )
-                          }>
-                          OK
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={savingAdjust}
-                          onClick={() => setEditingId('')}>
-                          Cancelar
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="row" style={{ marginTop: 6 }}>
-                        <button
-                          type="button"
-                          className="cat-card__expected-btn"
-                          onClick={() =>
-                            startEditExpected(row.categoryId, row.remainingEffectiveCents)
-                          }>
-                          {formatCentsCurrency(row.remainingEffectiveCents)}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={savingAdjust}
-                          title="Poner restante previsto a 0"
-                          onClick={() =>
-                            void setExpectedZero(row.categoryId, row.remainingRawCents)
-                          }>
-                          → 0
-                        </button>
-                        {hasAdjust ? (
-                          <button
-                            type="button"
-                            className="btn btn--ghost btn--sm"
-                            disabled={savingAdjust}
-                            title="Quitar ajuste (volver al bruto)"
-                            onClick={() => void clearAdjust(row.categoryId)}>
-                            Reset
-                          </button>
-                        ) : null}
-                      </div>
-                    )}
+                            <div className="cat-row__expected">
+                              <label
+                                className="cat-row__label"
+                                htmlFor={`exp-${row.categoryId}`}>
+                                Restante previsto
+                              </label>
+                              {isEditing ? (
+                                <div className="row" style={{ marginTop: 6 }}>
+                                  <input
+                                    id={`exp-${row.categoryId}`}
+                                    className="cat-row__input"
+                                    inputMode="decimal"
+                                    value={expectedDraft}
+                                    disabled={savingAdjust}
+                                    onChange={(e) => setExpectedDraft(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault()
+                                        void saveExpected(
+                                          row.categoryId,
+                                          row.remainingRawCents,
+                                          expectedDraft
+                                        )
+                                      }
+                                      if (e.key === 'Escape') setEditingId('')
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="btn btn--primary btn--sm"
+                                    disabled={savingAdjust}
+                                    onClick={() =>
+                                      void saveExpected(
+                                        row.categoryId,
+                                        row.remainingRawCents,
+                                        expectedDraft
+                                      )
+                                    }>
+                                    OK
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn--ghost btn--sm"
+                                    disabled={savingAdjust}
+                                    onClick={() => setEditingId('')}>
+                                    Cancelar
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="row" style={{ marginTop: 6 }}>
+                                  <button
+                                    type="button"
+                                    className={`cat-row__expected-btn cat-row__expected-btn--${status}`}
+                                    onClick={() =>
+                                      startEditExpected(
+                                        row.categoryId,
+                                        row.remainingEffectiveCents
+                                      )
+                                    }>
+                                    {formatCentsCurrency(row.remainingEffectiveCents)}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn--ghost btn--sm"
+                                    disabled={savingAdjust}
+                                    title="Poner restante previsto a 0"
+                                    onClick={() =>
+                                      void setExpectedZero(
+                                        row.categoryId,
+                                        row.remainingRawCents
+                                      )
+                                    }>
+                                    → 0
+                                  </button>
+                                  {hasAdjust ? (
+                                    <button
+                                      type="button"
+                                      className="btn btn--ghost btn--sm"
+                                      disabled={savingAdjust}
+                                      title="Quitar ajuste (volver al bruto)"
+                                      onClick={() => void clearAdjust(row.categoryId)}>
+                                      Reset
+                                    </button>
+                                  ) : null}
+                                </div>
+                              )}
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
                   </div>
-                </article>
-              )
-            })}
+                ))
+              : null}
           </div>
         </section>
       </AppPageLayout>
