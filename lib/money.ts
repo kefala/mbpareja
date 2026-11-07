@@ -10,6 +10,18 @@ export function centsToEuros(cents: number): number {
   return cents / 100
 }
 
+/** Parsea input UI ("12,34" | "12.34" | "12") → céntimos. */
+export function parseEurosToCents(raw: string): number {
+  const t = raw.trim().replace(/\s/g, '')
+  if (!t) throw new Error('Importe vacío')
+  const normalized = t.includes(',')
+    ? t.replace(/\./g, '').replace(',', '.')
+    : t
+  const n = Number(normalized)
+  if (!Number.isFinite(n)) throw new Error('Importe inválido')
+  return eurosToCents(n)
+}
+
 /** Formato UI fijo a 2 decimales (sin símbolo). Ej: 12345 → "123.45" */
 export function formatCents(cents: number, locale = 'es-ES'): string {
   if (!Number.isInteger(cents)) throw new Error('Céntimos deben ser enteros')

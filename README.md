@@ -54,6 +54,18 @@ pm2 start npm --name "mbpareja-prod" -- run start
 
 Puerto app: **3003** (final usa 3002 / `final-prod`).
 
-## Alcance Fase 0
+## Alcance
 
-Scaffold: auth, Mongo `getDb()`, health, placeholder home. **Sin** features de negocio (presupuesto, gastos, CSV, etc.).
+**Fase 0:** auth, Mongo `getDb()`, health, deploy stub.  
+**Fase 1 (MVP):** categorías, presupuesto activo, planificación 6 meses, gastos, cuentas/margen, dashboard, cierre mensual atómico.
+
+**Fuera de MVP:** histórico/CSV (Fase 2), analítica avanzada (Fase 3).
+
+## Flujos clave (local)
+
+1. Login Google → Dashboard (seed automático de categorías, mes activo + 6 futuros, 2 cuentas).
+2. **Presupuesto:** editar importes del mes activo → Guardar.
+3. **Gastos / Dashboard:** registrar gasto (céntimos; UI en € con 2 decimales) → ver restante y desviaciones.
+4. **Cuentas:** editar nombres y saldos → saldo total; margen en Dashboard.
+5. **Planificación:** matriz 6 meses; blur en celda guarda.
+6. **Configuración:** categorías (archivar) + **Cerrar mes activo** (confirmación + transacción).
