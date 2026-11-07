@@ -339,69 +339,160 @@ table.data tr.is-over td {
   background: #fff7ed;
 }
 
-.cat-list {
+.cat-groups {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 18px;
 }
 
-.cat-card {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 12px;
-  background: #f8fafc;
-}
-
-.cat-card--over {
-  background: #fff7ed;
-  border-color: #fed7aa;
-}
-
-.cat-card--adjusted {
-  border-color: #5eead4;
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-
-.cat-card__head {
+.cat-group__title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+}
+
+.cat-group__title--over {
+  color: var(--danger);
+}
+
+.cat-group__title--ok {
+  color: var(--ok);
+}
+
+.cat-group__title--zero {
+  color: #64748b;
+}
+
+.cat-group__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 750;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.cat-group__title--over .cat-group__count {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.cat-group__title--ok .cat-group__count {
+  background: #ecfdf5;
+  color: var(--ok);
+}
+
+.cat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.cat-row {
+  margin: 0;
+  padding: 12px 0 12px 12px;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid #94a3b8;
+  background: transparent;
+}
+
+.cat-row:last-child {
+  border-bottom: 0;
+}
+
+.cat-row--over {
+  border-left-color: var(--danger);
+  background: linear-gradient(90deg, #fef2f2 0%, transparent 64%);
+}
+
+.cat-row--ok {
+  border-left-color: var(--ok);
+}
+
+.cat-row--zero {
+  border-left-color: #94a3b8;
+  opacity: 0.92;
+}
+
+.cat-row__head {
   margin-bottom: 8px;
 }
 
-.cat-card__title {
-  margin: 0;
+.cat-row__name-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.cat-row__name {
   font-size: 15px;
   font-weight: 750;
+  color: var(--ink);
 }
 
-.cat-card__badge {
+.cat-status {
   font-size: 10px;
   font-weight: 750;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--accent);
-  background: var(--accent-soft);
-  padding: 3px 7px;
-  border-radius: 999px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid transparent;
 }
 
-.cat-card__grid {
+.cat-status--over {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: #fecaca;
+}
+
+.cat-status--ok {
+  color: var(--ok);
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.cat-status--zero {
+  color: #475569;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+.cat-status--adjust {
+  color: #0f766e;
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+
+.cat-row__grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 10px;
 }
 
-.cat-card__label {
+.cat-row__label {
   display: block;
   font-size: 11px;
   font-weight: 650;
   color: var(--muted);
 }
 
-.cat-card__value {
+.cat-row__value {
   display: block;
   margin-top: 2px;
   font-size: 13px;
@@ -409,10 +500,14 @@ table.data tr.is-over td {
   font-variant-numeric: tabular-nums;
 }
 
-.cat-card__expected-btn {
+.cat-row__value--danger {
+  color: var(--danger);
+}
+
+.cat-row__expected-btn {
   min-height: 40px;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid var(--line);
   background: #fff;
   font-size: 15px;
@@ -421,15 +516,32 @@ table.data tr.is-over td {
   cursor: pointer;
 }
 
-.cat-card__input {
+.cat-row__expected-btn--over {
+  border-color: #fecaca;
+  color: var(--danger);
+}
+
+.cat-row__expected-btn--ok {
+  border-color: #a7f3d0;
+  color: var(--ok);
+}
+
+.cat-row__expected-btn--zero {
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.cat-row__input {
   flex: 1;
   min-width: 100px;
   min-height: 40px;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid var(--line);
   font-size: 16px;
   text-align: right;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .muted {
