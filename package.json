@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev -p 3003",
     "build": "next build",
-    "start": "next start -p 3003"
+    "start": "next start -p 3003",
+    "seed": "node scripts/seed-from-csv.mjs"
   },
   "dependencies": {
     "mongodb": "^6.21.0",
