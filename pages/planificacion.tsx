@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AppPageLayout } from '@/components/app-page-layout'
 import { apiFetch } from '@/lib/client-fetch'
 import { centsToEuros, formatCentsCurrency, parseEurosToCents } from '@/lib/money'
-import { labelYearMonth } from '@/lib/months'
+import { labelYearMonthShort } from '@/lib/months'
 
 interface Category {
   id: string
@@ -76,7 +76,7 @@ export default function PlanificacionPage() {
         title="Planificación (6 meses)"
         lead={
           data
-            ? `Tras el activo ${labelYearMonth(data.activeYearMonth)}. Edita una celda y sal del campo para guardar.`
+            ? `Tras el activo ${labelYearMonthShort(data.activeYearMonth)}. Edita una celda y sal del campo para guardar.`
             : 'Cargando…'
         }>
         {error ? <div className="error-banner">{error}</div> : null}
@@ -89,7 +89,7 @@ export default function PlanificacionPage() {
                   <th>Categoría</th>
                   {data?.months.map((m) => (
                     <th key={m.yearMonth} className="num">
-                      {labelYearMonth(m.yearMonth)}
+                      {labelYearMonthShort(m.yearMonth)}
                     </th>
                   ))}
                 </tr>

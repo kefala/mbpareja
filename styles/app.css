@@ -109,6 +109,9 @@ body {
   border-radius: var(--radius);
   padding: 14px;
   margin-bottom: 12px;
+  overflow-x: clip;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .panel h2 {
@@ -166,14 +169,30 @@ body {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  flex: 1;
-  min-width: 120px;
+  flex: 1 1 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .field label {
@@ -184,13 +203,71 @@ body {
 
 .field input,
 .field select {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 44px;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 16px;
   background: #fff;
+}
+
+.field input[type='date'] {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.date-compact {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.date-compact__display {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  pointer-events: none;
+}
+
+.date-compact__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0.01;
+  cursor: pointer;
+  box-sizing: border-box;
+  color-scheme: light;
+}
+
+.date-compact__native:focus {
+  opacity: 0.02;
+  outline: none;
+}
+
+.date-compact:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .btn {

@@ -2,9 +2,10 @@ import Head from 'next/head'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
 import { AppPageLayout } from '@/components/app-page-layout'
+import { CompactDateInput } from '@/components/compact-date-input'
 import { apiFetch } from '@/lib/client-fetch'
 import { centsToEuros, formatCentsCurrency, parseEurosToCents } from '@/lib/money'
-import { labelYearMonth } from '@/lib/months'
+import { labelDateShort, labelYearMonthShort } from '@/lib/months'
 import type { MonthIndicators } from '@/types/domain'
 
 interface HistoryMonthSummary {
@@ -195,7 +196,7 @@ export default function HistoricoPage() {
                 <tbody>
                   {months.map((m) => (
                     <tr key={m.yearMonth} className={selected === m.yearMonth ? 'is-over' : undefined}>
-                      <td>{labelYearMonth(m.yearMonth)}</td>
+                      <td>{labelYearMonthShort(m.yearMonth)}</td>
                       <td className="num">{formatCentsCurrency(m.budgetTotalCents)}</td>
                       <td className="num">{formatCentsCurrency(m.spentTotalCents)}</td>
                       <td className="num">{formatCentsCurrency(m.remainingTotalCents)}</td>
@@ -222,7 +223,7 @@ export default function HistoricoPage() {
         {detail ? (
           <>
             <section className="panel">
-              <h2>Resumen — {labelYearMonth(detail.yearMonth)}</h2>
+              <h2>Resumen — {labelYearMonthShort(detail.yearMonth)}</h2>
               <div className="stats-grid">
                 <div className="stat">
                   <span className="stat__label">Presupuesto</span>
@@ -284,10 +285,11 @@ export default function HistoricoPage() {
             <section className="panel">
               <h2>{editingExpenseId ? 'Editar gasto' : 'Añadir gasto al histórico'}</h2>
               <form className="stack" onSubmit={(e) => void onSaveExpense(e)}>
-                <div className="row">
+                <div className="form-grid">
                   <div className="field">
-                    <label>Importe (€)</label>
+                    <label htmlFor="h-amount">Importe (€)</label>
                     <input
+                      id="h-amount"
                       inputMode="decimal"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
@@ -295,8 +297,9 @@ export default function HistoricoPage() {
                     />
                   </div>
                   <div className="field">
-                    <label>Categoría</label>
+                    <label htmlFor="h-cat">Categoría</label>
                     <select
+                      id="h-cat"
                       value={categoryId}
                       onChange={(e) => setCategoryId(e.target.value)}
                       required>
@@ -310,11 +313,11 @@ export default function HistoricoPage() {
                     </select>
                   </div>
                   <div className="field">
-                    <label>Fecha</label>
-                    <input
-                      type="date"
+                    <label htmlFor="h-date">Fecha</label>
+                    <CompactDateInput
+                      id="h-date"
                       value={date}
-                      onChange={(e) => setDate(e.target.value)}
+                      onChange={setDate}
                       required
                     />
                   </div>
@@ -350,7 +353,7 @@ export default function HistoricoPage() {
                   <tbody>
                     {detail.expenses.map((exp) => (
                       <tr key={exp.id}>
-                        <td>{exp.date}</td>
+                        <td>{labelDateShort(exp.date)}</td>
                         <td>
                           {exp.categoryName}
                           {exp.source === 'import' ? ' · CSV' : ''}

@@ -58,3 +58,17 @@ export function labelYearMonth(yearMonth: string, locale = 'es-ES'): string {
   const d = new Date(Date.UTC(Number(ys), Number(ms) - 1, 1))
   return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(d)
 }
+
+/** Compacto para tablas mobile: 2026-10 → 10/26 */
+export function labelYearMonthShort(yearMonth: string): string {
+  if (!isValidYearMonth(yearMonth)) return yearMonth
+  const [ys, ms] = yearMonth.split('-')
+  return `${ms}/${ys!.slice(2)}`
+}
+
+/** ISO YYYY-MM-DD → DD/MM/YY para UI compacta */
+export function labelDateShort(isoDate: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim())
+  if (!m) return isoDate
+  return `${m[2]}/${m[3]}/${m[1]!.slice(2)}`
+}
