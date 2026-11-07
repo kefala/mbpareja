@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { AppPageLayout } from '@/components/app-page-layout'
 import { apiFetch } from '@/lib/client-fetch'
 import { centsToEuros, formatCentsCurrency, parseEurosToCents } from '@/lib/money'
-import { labelYearMonth } from '@/lib/months'
+import { labelYearMonthShort } from '@/lib/months'
 
 interface Category {
   id: string
@@ -81,7 +81,7 @@ export default function PresupuestoPage() {
       </Head>
       <AppPageLayout
         title="Presupuesto mensual"
-        lead={yearMonth ? `Mes activo: ${labelYearMonth(yearMonth)}` : 'Cargando…'}>
+        lead={yearMonth ? `Mes activo: ${labelYearMonthShort(yearMonth)}` : 'Cargando…'}>
         {error ? <div className="error-banner">{error}</div> : null}
         {ok ? <div className="ok-banner">{ok}</div> : null}
 

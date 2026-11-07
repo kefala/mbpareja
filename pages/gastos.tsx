@@ -2,8 +2,10 @@ import Head from 'next/head'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
 import { AppPageLayout } from '@/components/app-page-layout'
+import { CompactDateInput } from '@/components/compact-date-input'
 import { apiFetch } from '@/lib/client-fetch'
 import { centsToEuros, formatCentsCurrency, parseEurosToCents } from '@/lib/money'
+import { labelDateShort, labelYearMonthShort } from '@/lib/months'
 
 interface Category {
   id: string
@@ -108,13 +110,15 @@ export default function GastosPage() {
       <Head>
         <title>Gastos — Finanzas pareja</title>
       </Head>
-      <AppPageLayout title="Gastos" lead={`Mes: ${yearMonth || '…'}`}>
+      <AppPageLayout
+        title="Gastos"
+        lead={`Mes: ${yearMonth ? labelYearMonthShort(yearMonth) : '…'}`}>
         {error ? <div className="error-banner">{error}</div> : null}
 
         <section className="panel">
           <h2>{editingId ? 'Editar gasto' : 'Nuevo gasto'}</h2>
           <form className="stack" onSubmit={(e) => void onSubmit(e)}>
-            <div className="row">
+            <div className="form-grid">
               <div className="field">
                 <label htmlFor="g-amount">Importe (€)</label>
                 <input
@@ -141,11 +145,10 @@ export default function GastosPage() {
               </div>
               <div className="field">
                 <label htmlFor="g-date">Fecha</label>
-                <input
+                <CompactDateInput
                   id="g-date"
-                  type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={setDate}
                   required
                 />
               </div>
@@ -178,7 +181,7 @@ export default function GastosPage() {
               <tbody>
                 {expenses.map((exp) => (
                   <tr key={exp.id}>
-                    <td>{exp.date}</td>
+                    <td>{labelDateShort(exp.date)}</td>
                     <td>{exp.categoryName}</td>
                     <td className="num">{formatCentsCurrency(exp.amountCents)}</td>
                     <td>
