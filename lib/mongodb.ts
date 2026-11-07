@@ -21,7 +21,12 @@ export function atlasConnectionUri(): string {
 /** DB propia de mbpareja (distinta a trading_read de final). Default: mbpareja. */
 export function atlasDatabaseName(connectionUri?: string): string {
   const uri = connectionUri ?? atlasConnectionUri()
-  return process.env.ATLAS_DB_NAME?.trim() || parseMongoDbName(uri) || 'mbpareja'
+  return (
+    process.env.ATLAS_DB_NAME?.trim() ||
+    process.env.ATLAS_MIRROR_DB_NAME?.trim() ||
+    parseMongoDbName(uri) ||
+    'mbpareja'
+  )
 }
 
 declare global {

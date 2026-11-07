@@ -29,7 +29,7 @@ Ver `.env.example` (solo nombres; sin secretos en el repo):
 | Variable | Uso |
 |----------|-----|
 | `ATLAS_URI` | Cadena Mongo Atlas (servidor) |
-| `ATLAS_DB_NAME` | `mbpareja` (no usar `trading_read`) |
+| `ATLAS_DB_NAME` | `mbpareja` (no usar `trading_read`). Alias: `ATLAS_MIRROR_DB_NAME` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | OAuth Google |
 | `NEXTAUTH_SECRET` / `NEXTAUTH_URL` | NextAuth |
 | `ALLOWED_EMAILS` | Exactamente 2 emails (coma). Alias: `ONLINE_ALLOWED_EMAILS` |
@@ -72,3 +72,16 @@ Puerto app: **3003** (final usa 3002 / `final-prod`).
 6. **Configuración:** categorías (archivar) + **Cerrar mes activo** (confirmación + transacción).
 7. **Import CSV (Config):** pegar CSV → Validar/preview → Confirmar. No toca activo ni planificación. Plantilla en `GET /api/import/csv` (ver `docs/import-csv.md`).
 8. **Histórico:** abrir mes cerrado → editar presupuesto/gastos (sigue `closed`).
+
+## Seed datos reales (nov 2026)
+
+CSVs en `docs/import/`. Tras vaciar Atlas `mbpareja`:
+
+```bash
+npm run seed
+# o: node scripts/seed-from-csv.mjs
+```
+
+Deja activo `2026-11`, histórico 2025–2026-10 cerrado, y 6 meses de planificación. Detalle: `docs/import/README.md`.
+
+También acepta `ATLAS_MIRROR_DB_NAME` como alias de nombre de DB (además de `ATLAS_DB_NAME`).
