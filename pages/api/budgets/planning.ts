@@ -9,6 +9,7 @@ import {
   withApiAuth
 } from '@/lib/api'
 import { budgetMonthsCol } from '@/lib/collections'
+import { mergeBudgetLines } from '@/lib/indicators'
 import { getDb } from '@/lib/mongodb'
 import { getActiveBudgetMonth, listActiveCategories } from '@/lib/queries'
 
@@ -59,17 +60,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!cats.some((c) => c.id === body.data.categoryId))
         return badRequest(res, 'Categoría no válida')
 
-      const lines = [...month.lines]
-      const idx = lines.findIndex((l) => l.categoryId === body.data.categoryId)
-      if (idx >= 0) lines[idx] = { categoryId: body.data.categoryId, amountCents: body.data.amountCents }
-      else lines.push({ categoryId: body.data.categoryId, amountCents: body.data.amountCents })
-
-      // Asegurar todas las categorías activas
-      const byId = new Map(lines.map((l) => [l.categoryId, l.amountCents]))
-      const nextLines = cats.map((c) => ({
-        categoryId: c.id,
-        amountCents: byId.get(c.id) ?? 0
-      }))
+      const byId = new Map(month.lines.map((l) => [l.categoryId, l.amountCents]))
+      byId.set(body.data.categoryId, body.data.amountCents)
+      const nextLines = mergeBudgetLines({
+        previous: month.lines,
+        nextAmounts: cats.map((c) => ({
+          categoryId: c.id,
+          amountCents: byId.get(c.id) ?? 0
+        }))
+      })
 
       await budgetMonthsCol(db).updateOne(
         { _id: month._id },

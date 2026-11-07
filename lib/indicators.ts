@@ -6,6 +6,29 @@ export function lineAmountMap(lines: BudgetLine[]): Map<string, number> {
   return m
 }
 
+export function lineSpentClosedMap(lines: BudgetLine[]): Map<string, boolean> {
+  const m = new Map<string, boolean>()
+  for (const l of lines) m.set(l.categoryId, Boolean(l.spentClosed))
+  return m
+}
+
+/** Fusiona importes nuevos conservando spentClosed existente. */
+export function mergeBudgetLines(input: {
+  previous: BudgetLine[]
+  nextAmounts: { categoryId: string; amountCents: number }[]
+}): BudgetLine[] {
+  const closedById = lineSpentClosedMap(input.previous)
+  return input.nextAmounts.map((l) => {
+    const spentClosed = closedById.get(l.categoryId)
+    const line: BudgetLine = {
+      categoryId: l.categoryId,
+      amountCents: l.amountCents
+    }
+    if (spentClosed) line.spentClosed = true
+    return line
+  })
+}
+
 export function computeMonthIndicators(input: {
   lines: BudgetLine[]
   spentByCategory: Map<string, number>
@@ -13,6 +36,7 @@ export function computeMonthIndicators(input: {
   accountsTotalCents: number
 }): MonthIndicators {
   const budgetMap = lineAmountMap(input.lines)
+  const closedMap = lineSpentClosedMap(input.lines)
   const byCategory: CategoryRowStats[] = []
 
   let budgetTotalCents = 0
@@ -21,39 +45,33 @@ export function computeMonthIndicators(input: {
 
   const seen = new Set<string>()
 
-  for (const cat of input.categories) {
-    seen.add(cat.id)
-    const budgetCents = budgetMap.get(cat.id) ?? 0
-    const spentCents = input.spentByCategory.get(cat.id) ?? 0
+  function pushRow(categoryId: string, name: string, spentCents: number) {
+    const budgetCents = budgetMap.get(categoryId) ?? 0
     const remainingCents = budgetCents - spentCents
+    const spentClosed = closedMap.get(categoryId) ?? false
     budgetTotalCents += budgetCents
     spentTotalCents += spentCents
-    if (remainingCents > 0) pendingToExecuteCents += remainingCents
+    // Solo restante positivo y categorías NO cerradas cuentan para pendiente/margen.
+    if (remainingCents > 0 && !spentClosed) pendingToExecuteCents += remainingCents
     byCategory.push({
-      categoryId: cat.id,
-      name: cat.name,
+      categoryId,
+      name,
       budgetCents,
       spentCents,
       remainingCents,
-      overBudget: remainingCents < 0
+      overBudget: remainingCents < 0,
+      spentClosed
     })
+  }
+
+  for (const cat of input.categories) {
+    seen.add(cat.id)
+    pushRow(cat.id, cat.name, input.spentByCategory.get(cat.id) ?? 0)
   }
 
   for (const [categoryId, spentCents] of input.spentByCategory) {
     if (seen.has(categoryId)) continue
-    const budgetCents = budgetMap.get(categoryId) ?? 0
-    const remainingCents = budgetCents - spentCents
-    budgetTotalCents += budgetCents
-    spentTotalCents += spentCents
-    if (remainingCents > 0) pendingToExecuteCents += remainingCents
-    byCategory.push({
-      categoryId,
-      name: '(archivada)',
-      budgetCents,
-      spentCents,
-      remainingCents,
-      overBudget: remainingCents < 0
-    })
+    pushRow(categoryId, '(archivada)', spentCents)
   }
 
   byCategory.sort((a, b) => a.name.localeCompare(b.name, 'es'))

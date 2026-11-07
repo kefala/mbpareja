@@ -5,6 +5,8 @@ export type MonthStatus = 'open' | 'closed'
 export interface BudgetLine {
   categoryId: string
   amountCents: number
+  /** Si true, el restante positivo no cuenta en pendiente/margen este mes. */
+  spentClosed?: boolean
 }
 
 export interface CategoryDoc {
@@ -59,6 +61,7 @@ export interface CategoryRowStats {
   spentCents: number
   remainingCents: number
   overBudget: boolean
+  spentClosed: boolean
 }
 
 export interface MonthIndicators {
