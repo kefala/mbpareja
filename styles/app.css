@@ -262,47 +262,97 @@ table.data tr.is-over td {
   background: #fff7ed;
 }
 
-table.data tr.is-spent-closed td {
-  opacity: 0.78;
+.cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.cat-lock-cell {
-  width: 44px;
-  padding-right: 0 !important;
+.cat-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fafc;
 }
 
-.btn-lock {
-  width: 40px;
-  height: 40px;
+.cat-card--over {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.cat-card--adjusted {
+  border-color: #5eead4;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.cat-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cat-card__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.cat-card__badge {
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 3px 7px;
+  border-radius: 999px;
+}
+
+.cat-card__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cat-card__label {
+  display: block;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.cat-card__value {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cat-card__expected-btn {
   min-height: 40px;
-  padding: 0;
+  padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid var(--line);
   background: #fff;
+  font-size: 15px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
+}
+
+.cat-card__input {
+  flex: 1;
+  min-width: 100px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
   font-size: 16px;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-lock--on {
-  background: var(--accent-soft);
-  border-color: #5eead4;
-}
-
-.btn-lock:disabled {
-  opacity: 0.5;
-  cursor: wait;
-}
-
-.spent-closed-tag {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  text-align: right;
 }
 
 .muted {

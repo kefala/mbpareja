@@ -5,8 +5,13 @@ export type MonthStatus = 'open' | 'closed'
 export interface BudgetLine {
   categoryId: string
   amountCents: number
-  /** Si true, el restante positivo no cuenta en pendiente/margen este mes. */
-  spentClosed?: boolean
+  /**
+   * Ajuste del restante (céntimos), sin cambiar el presupuesto.
+   * restanteEfectivo = presupuesto − gastado + remainingAdjustCents
+   * (negativo ⇒ esperas gastar más; positivo ⇒ sobrará más; −bruto ⇒ restante 0)
+   * Campo legado `spentClosed` se ignora si existe en documentos antiguos.
+   */
+  remainingAdjustCents?: number
 }
 
 export interface CategoryDoc {
@@ -59,14 +64,18 @@ export interface CategoryRowStats {
   name: string
   budgetCents: number
   spentCents: number
-  remainingCents: number
+  /** presupuesto − gastado (sin ajuste) */
+  remainingRawCents: number
+  remainingAdjustCents: number
+  /** presupuesto − gastado + ajuste */
+  remainingEffectiveCents: number
   overBudget: boolean
-  spentClosed: boolean
 }
 
 export interface MonthIndicators {
   budgetTotalCents: number
   spentTotalCents: number
+  /** Suma de restantes brutos (sin ajuste) */
   remainingTotalCents: number
   pendingToExecuteCents: number
   accountsTotalCents: number
