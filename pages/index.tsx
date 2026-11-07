@@ -1,49 +1,211 @@
 import Head from 'next/head'
-import { signOut, useSession } from 'next-auth/react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
-/** Placeholder autenticado — sin features de negocio (Fase 0). */
-export default function HomePage() {
-  const { data: session } = useSession()
+import { AppPageLayout } from '@/components/app-page-layout'
+import { apiFetch } from '@/lib/client-fetch'
+import { formatCentsCurrency, parseEurosToCents } from '@/lib/money'
+import { labelYearMonth } from '@/lib/months'
+import type { MonthIndicators } from '@/types/domain'
+
+interface Category {
+  id: string
+  name: string
+}
+
+interface DashboardData {
+  yearMonth: string
+  indicators: MonthIndicators
+  categories: Category[]
+}
+
+function todayIso(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+export default function DashboardPage() {
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [error, setError] = useState('')
+  const [amount, setAmount] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [date, setDate] = useState(todayIso())
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    setError('')
+    try {
+      const json = await apiFetch<DashboardData>('/api/dashboard')
+      setData(json)
+      setCategoryId((prev) => prev || json.categories[0]?.id || '')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al cargar')
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  async function onQuickExpense(e: FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    try {
+      const amountCents = parseEurosToCents(amount)
+      if (amountCents <= 0) throw new Error('Importe debe ser positivo')
+      await apiFetch('/api/expenses', {
+        method: 'POST',
+        body: JSON.stringify({ amountCents, categoryId, date })
+      })
+      setAmount('')
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo guardar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const ind = data?.indicators
 
   return (
     <>
       <Head>
-        <title>Finanzas pareja</title>
+        <title>Dashboard — Finanzas pareja</title>
       </Head>
-      <main
-        style={{
-          minHeight: '100dvh',
-          padding: '32px 20px',
-          maxWidth: 640,
-          margin: '0 auto'
-        }}>
-        <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 700, color: '#0f172a' }}>
-          Finanzas pareja
-        </h1>
-        <p style={{ margin: '0 0 24px', fontSize: 15, fontWeight: 500, color: '#475569' }}>
-          Scaffold listo. Las pantallas de presupuesto, gastos y cuentas llegarán en fases
-          posteriores.
-        </p>
-        {session?.user?.email ? (
-          <p style={{ margin: '0 0 16px', fontSize: 14, color: '#334155' }}>
-            Sesión: {session.user.email}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => void signOut({ callbackUrl: '/login' })}
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            padding: '10px 14px',
-            borderRadius: 8,
-            border: '1px solid #cbd5e1',
-            background: '#fff',
-            cursor: 'pointer'
-          }}>
-          Cerrar sesión
-        </button>
-      </main>
+      <AppPageLayout
+        title="Dashboard"
+        lead={
+          data ? (
+            <span>
+              Mes activo: <strong>{labelYearMonth(data.yearMonth)}</strong>
+            </span>
+          ) : (
+            'Resumen del mes activo'
+          )
+        }>
+        {error ? <div className="error-banner">{error}</div> : null}
+
+        <section className="panel">
+          <h2>Resumen</h2>
+          <div className="stats-grid">
+            <div className="stat">
+              <span className="stat__label">Presupuesto</span>
+              <span className="stat__value">
+                {ind ? formatCentsCurrency(ind.budgetTotalCents) : '—'}
+              </span>
+            </div>
+            <div className="stat">
+              <span className="stat__label">Ejecutado</span>
+              <span className="stat__value">
+                {ind ? formatCentsCurrency(ind.spentTotalCents) : '—'}
+              </span>
+            </div>
+            <div className="stat">
+              <span className="stat__label">Restante</span>
+              <span className="stat__value">
+                {ind ? formatCentsCurrency(ind.remainingTotalCents) : '—'}
+              </span>
+            </div>
+            <div className="stat">
+              <span className="stat__label">Pendiente de ejecutar</span>
+              <span className="stat__value">
+                {ind ? formatCentsCurrency(ind.pendingToExecuteCents) : '—'}
+              </span>
+            </div>
+            <div className="stat">
+              <span className="stat__label">Saldo cuentas</span>
+              <span className="stat__value">
+                {ind ? formatCentsCurrency(ind.accountsTotalCents) : '—'}
+              </span>
+            </div>
+            <div
+              className={
+                ind && ind.projectedMarginCents < 0 ? 'stat stat--danger' : 'stat stat--ok'
+              }>
+              <span className="stat__label">Margen previsto</span>
+              <span className="stat__value">
+                {ind ? formatCentsCurrency(ind.projectedMarginCents) : '—'}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <section className="panel">
+          <h2>Registro rápido</h2>
+          <form className="stack" onSubmit={(e) => void onQuickExpense(e)}>
+            <div className="row">
+              <div className="field">
+                <label htmlFor="amount">Importe (€)</label>
+                <input
+                  id="amount"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="category">Categoría</label>
+                <select
+                  id="category"
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  required>
+                  {data?.categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="date">Fecha</label>
+                <input
+                  id="date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <button className="btn btn--primary" type="submit" disabled={saving || !categoryId}>
+              {saving ? 'Guardando…' : 'Añadir gasto'}
+            </button>
+          </form>
+        </section>
+
+        <section className="panel">
+          <h2>Por categoría</h2>
+          <div className="table-wrap">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Categoría</th>
+                  <th className="num">Presup.</th>
+                  <th className="num">Gastado</th>
+                  <th className="num">Restante</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ind?.byCategory.map((row) => (
+                  <tr key={row.categoryId} className={row.overBudget ? 'is-over' : undefined}>
+                    <td>{row.name}</td>
+                    <td className="num">{formatCentsCurrency(row.budgetCents)}</td>
+                    <td className="num">{formatCentsCurrency(row.spentCents)}</td>
+                    <td className="num">{formatCentsCurrency(row.remainingCents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </AppPageLayout>
     </>
   )
 }

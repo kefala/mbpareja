@@ -29,12 +29,16 @@ declare global {
   var __mbparejaMongo: Promise<MongoClient> | undefined
 }
 
-export async function getDb(): Promise<Db> {
+export async function getMongoClient(): Promise<MongoClient> {
   const uri = atlasConnectionUri()
   if (!globalThis.__mbparejaMongo)
     globalThis.__mbparejaMongo = new MongoClient(uri, {
       serverSelectionTimeoutMS: 45_000
     }).connect()
-  const client = await globalThis.__mbparejaMongo
-  return client.db(atlasDatabaseName(uri))
+  return globalThis.__mbparejaMongo
+}
+
+export async function getDb(): Promise<Db> {
+  const client = await getMongoClient()
+  return client.db(atlasDatabaseName())
 }
