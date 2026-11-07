@@ -57,9 +57,10 @@ Puerto app: **3003** (final usa 3002 / `final-prod`).
 ## Alcance
 
 **Fase 0:** auth, Mongo `getDb()`, health, deploy stub.  
-**Fase 1 (MVP):** categorías, presupuesto activo, planificación 6 meses, gastos, cuentas/margen, dashboard, cierre mensual atómico.
+**Fase 1 (MVP):** categorías, presupuesto activo, planificación 6 meses, gastos, cuentas/margen, dashboard, cierre mensual atómico.  
+**Fase 2:** histórico de meses cerrados (editable) + import CSV (preview/confirmación/anti-duplicados).  
 
-**Fuera de MVP:** histórico/CSV (Fase 2), analítica avanzada (Fase 3).
+**Fuera aún:** analítica avanzada (Fase 3).
 
 ## Flujos clave (local)
 
@@ -69,3 +70,5 @@ Puerto app: **3003** (final usa 3002 / `final-prod`).
 4. **Cuentas:** editar nombres y saldos → saldo total; margen en Dashboard.
 5. **Planificación:** matriz 6 meses; blur en celda guarda.
 6. **Configuración:** categorías (archivar) + **Cerrar mes activo** (confirmación + transacción).
+7. **Import CSV (Config):** pegar CSV → Validar/preview → Confirmar. No toca activo ni planificación. Plantilla en `GET /api/import/csv` (ver `docs/import-csv.md`).
+8. **Histórico:** abrir mes cerrado → editar presupuesto/gastos (sigue `closed`).

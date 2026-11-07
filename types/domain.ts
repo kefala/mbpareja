@@ -34,6 +34,9 @@ export interface ExpenseDoc {
   yearMonth: string
   createdAt: Date
   updatedAt: Date
+  /** Gasto agregado de import CSV; clave natural categoryId:yearMonth */
+  source?: 'manual' | 'import'
+  importKey?: string
 }
 
 export interface BankAccountDoc {

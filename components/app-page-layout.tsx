@@ -14,6 +14,7 @@ const BOTTOM_NAV: NavItem[] = [
   { href: '/presupuesto', label: 'Presupuesto', shortLabel: 'Presup.' },
   { href: '/planificacion', label: 'Planificación', shortLabel: 'Plan' },
   { href: '/gastos', label: 'Gastos', shortLabel: 'Gastos' },
+  { href: '/historico', label: 'Histórico', shortLabel: 'Hist.' },
   { href: '/cuentas', label: 'Cuentas', shortLabel: 'Cuentas' },
   { href: '/configuracion', label: 'Configuración', shortLabel: 'Config' }
 ]

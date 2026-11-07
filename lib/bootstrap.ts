@@ -37,6 +37,10 @@ export async function ensureIndexes(db: Db): Promise<void> {
     budgetMonthsCol(db).createIndex({ yearMonth: 1 }, { unique: true }),
     expensesCol(db).createIndex({ yearMonth: 1, categoryId: 1 }),
     expensesCol(db).createIndex({ date: 1 }),
+    expensesCol(db).createIndex(
+      { importKey: 1 },
+      { unique: true, sparse: true }
+    ),
     categoriesCol(db).createIndex(
       { name: 1 },
       { unique: true, collation: { locale: 'es', strength: 2 } }

@@ -17,6 +17,21 @@ interface ClosePreview {
   newSixthYearMonth: string
 }
 
+interface ImportPreviewPayload {
+  canConfirm: boolean
+  issues: { line: number; level: string; message: string }[]
+  summary: {
+    categoryCreates: string[]
+    categoryExisting: string[]
+    monthsToUpsert: string[]
+    monthsProtectedSkipped: string[]
+    expenseCreates: number
+    expenseDuplicates: number
+    budgetLineUpserts: number
+    categoryOnlyRows: number
+  }
+}
+
 export default function ConfiguracionPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [name, setName] = useState('')
@@ -25,6 +40,8 @@ export default function ConfiguracionPage() {
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
   const [busy, setBusy] = useState(false)
+  const [csvText, setCsvText] = useState('')
+  const [importPreview, setImportPreview] = useState<ImportPreviewPayload | null>(null)
 
   const load = useCallback(async () => {
     const [cats, close] = await Promise.all([
@@ -111,14 +128,159 @@ export default function ConfiguracionPage() {
     }
   }
 
+  async function onPreviewCsv() {
+    setBusy(true)
+    setError('')
+    setOk('')
+    try {
+      const res = await apiFetch<{ preview: ImportPreviewPayload }>('/api/import/csv', {
+        method: 'POST',
+        body: JSON.stringify({ csv: csvText })
+      })
+      setImportPreview(res.preview)
+      setOk(
+        res.preview.canConfirm
+          ? 'Validación OK. Revisa el resumen y confirma.'
+          : 'Hay errores de validación; corrige el CSV.'
+      )
+    } catch (err) {
+      setImportPreview(null)
+      setError(err instanceof Error ? err.message : 'Error al validar CSV')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onConfirmCsv() {
+    if (!importPreview?.canConfirm) return
+    if (
+      !window.confirm(
+        '¿Confirmar importación? No alterará el mes activo ni la planificación futura. Los duplicados de gasto se omitirán.'
+      )
+    )
+      return
+    setBusy(true)
+    setError('')
+    setOk('')
+    try {
+      const res = await apiFetch<{
+        ok: boolean
+        applied: {
+          categoriesCreated: number
+          monthsUpserted: number
+          expensesCreated: number
+          expensesSkippedDuplicates: number
+          rowsSkippedProtected: number
+        }
+      }>('/api/import/csv', {
+        method: 'POST',
+        body: JSON.stringify({ csv: csvText, confirm: true })
+      })
+      setOk(
+        `Importado: ${res.applied.categoriesCreated} categorías, ${res.applied.monthsUpserted} meses, ${res.applied.expensesCreated} gastos` +
+          (res.applied.expensesSkippedDuplicates
+            ? ` (${res.applied.expensesSkippedDuplicates} duplicados omitidos)`
+            : '') +
+          (res.applied.rowsSkippedProtected
+            ? ` (${res.applied.rowsSkippedProtected} filas protegidas omitidas)`
+            : '')
+      )
+      setImportPreview(null)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al importar')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <>
       <Head>
         <title>Configuración — Finanzas pareja</title>
       </Head>
-      <AppPageLayout title="Configuración" lead="Categorías y cierre mensual.">
+      <AppPageLayout title="Configuración" lead="Categorías, cierre mensual e importación CSV.">
         {error ? <div className="error-banner">{error}</div> : null}
         {ok ? <div className="ok-banner">{ok}</div> : null}
+
+        <section className="panel">
+          <h2>Importar histórico CSV</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            UTF-8, separador <code>,</code> o <code>;</code>. Columnas:{' '}
+            <code>categoria,year_month,presupuesto,gasto</code>. No toca mes activo ni
+            planificación. Decimales con punto o coma.
+          </p>
+          <div className="row" style={{ marginBottom: 10 }}>
+            <a className="btn btn--ghost" href="/api/import/csv">
+              Descargar plantilla
+            </a>
+          </div>
+          <div className="field">
+            <label htmlFor="csv">Pegar CSV</label>
+            <textarea
+              id="csv"
+              value={csvText}
+              onChange={(e) => {
+                setCsvText(e.target.value)
+                setImportPreview(null)
+              }}
+              rows={8}
+              style={{
+                width: '100%',
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                fontSize: 13,
+                padding: 10,
+                borderRadius: 10,
+                border: '1px solid var(--line)'
+              }}
+              placeholder={'categoria,year_month,presupuesto,gasto\nAlquiler,2024-01,800,800'}
+            />
+          </div>
+          <div className="row" style={{ marginTop: 10 }}>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={busy || !csvText.trim()}
+              onClick={() => void onPreviewCsv()}>
+              Validar / preview
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={busy || !importPreview?.canConfirm}
+              onClick={() => void onConfirmCsv()}>
+              Confirmar importación
+            </button>
+          </div>
+          {importPreview ? (
+            <div style={{ marginTop: 12 }}>
+              <p className="muted" style={{ marginBottom: 8 }}>
+                Categorías nuevas: {importPreview.summary.categoryCreates.length || 'ninguna'} ·
+                Meses a escribir: {importPreview.summary.monthsToUpsert.join(', ') || '—'} ·
+                Protegidos omitidos:{' '}
+                {importPreview.summary.monthsProtectedSkipped.join(', ') || '—'} · Gastos nuevos:{' '}
+                {importPreview.summary.expenseCreates} · Duplicados:{' '}
+                {importPreview.summary.expenseDuplicates}
+              </p>
+              {importPreview.summary.categoryCreates.length > 0 ? (
+                <p className="muted">
+                  Crear: {importPreview.summary.categoryCreates.join(', ')}
+                </p>
+              ) : null}
+              {importPreview.issues.length > 0 ? (
+                <ul className="muted" style={{ paddingLeft: 18, margin: 0 }}>
+                  {importPreview.issues.slice(0, 20).map((iss, i) => (
+                    <li key={`${iss.line}-${i}`}>
+                      L{iss.line} [{iss.level}] {iss.message}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="muted">Sin incidencias.</p>
+              )}
+            </div>
+          ) : null}
+        </section>
 
         <section className="panel">
           <h2>Cierre mensual</h2>

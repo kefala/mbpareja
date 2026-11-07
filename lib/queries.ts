@@ -69,17 +69,47 @@ export async function accountsSnapshot(db: Db) {
 
 export async function buildMonthIndicators(
   db: Db,
-  month: BudgetMonthDoc
+  month: BudgetMonthDoc,
+  opts?: { includeArchivedCategories?: boolean }
 ): Promise<MonthIndicators> {
-  const cats = await listActiveCategories(db)
+  const cats = opts?.includeArchivedCategories
+    ? await listAllCategories(db)
+    : await listActiveCategories(db)
   const spent = await spentByCategoryForMonth(db, month.yearMonth)
   const { totalCents } = await accountsSnapshot(db)
   return computeMonthIndicators({
     lines: month.lines,
     spentByCategory: spent,
-    categories: cats.map((c) => ({ id: c.id, name: c.name })),
+    categories: cats.map((c) => ({
+      id: c.id,
+      name: c.archived ? `${c.name} (arch.)` : c.name
+    })),
     accountsTotalCents: totalCents
   })
+}
+
+export async function listClosedMonths(db: Db) {
+  const months = await budgetMonthsCol(db)
+    .find({ status: 'closed' })
+    .sort({ yearMonth: -1 })
+    .toArray()
+
+  const out = []
+  for (const m of months) {
+    const spent = await spentByCategoryForMonth(db, m.yearMonth)
+    let spentTotal = 0
+    for (const v of spent.values()) spentTotal += v
+    const budgetTotal = m.lines.reduce((s, l) => s + l.amountCents, 0)
+    out.push({
+      yearMonth: m.yearMonth,
+      status: m.status,
+      closedAt: m.closedAt ?? null,
+      budgetTotalCents: budgetTotal,
+      spentTotalCents: spentTotal,
+      remainingTotalCents: budgetTotal - spentTotal
+    })
+  }
+  return out
 }
 
 export async function serializeExpense(
