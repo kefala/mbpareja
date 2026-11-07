@@ -16,8 +16,8 @@ import type { BudgetLine } from '@/types/domain'
 
 const patchSchema = z.object({
   categoryId: z.string().min(1),
-  spentClosed: z.boolean(),
-  /** Por defecto: mes activo. */
+  /** Ajuste en céntimos: restanteEfectivo = bruto + remainingAdjustCents */
+  remainingAdjustCents: z.number().int(),
   yearMonth: z.string().regex(/^\d{4}-\d{2}$/).optional()
 })
 
@@ -36,18 +36,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const month = await budgetMonthsCol(db).findOne({ yearMonth })
     if (!month) return notFound(res, 'Mes no encontrado')
 
-    const lines: BudgetLine[] = month.lines.map((l) => ({ ...l }))
+    const lines: BudgetLine[] = month.lines.map((l) => {
+      const { spentClosed: _legacy, ...rest } = l as BudgetLine & { spentClosed?: boolean }
+      return { ...rest }
+    })
     const idx = lines.findIndex((l) => l.categoryId === body.data.categoryId)
+    const adjust = body.data.remainingAdjustCents
+
     if (idx < 0) {
-      lines.push({
+      const line: BudgetLine = {
         categoryId: body.data.categoryId,
-        amountCents: 0,
-        ...(body.data.spentClosed ? { spentClosed: true } : {})
-      })
+        amountCents: 0
+      }
+      if (adjust !== 0) line.remainingAdjustCents = adjust
+      lines.push(line)
     } else {
-      const line = { ...lines[idx]! }
-      if (body.data.spentClosed) line.spentClosed = true
-      else delete line.spentClosed
+      const line: BudgetLine = {
+        categoryId: lines[idx]!.categoryId,
+        amountCents: lines[idx]!.amountCents
+      }
+      if (adjust !== 0) line.remainingAdjustCents = adjust
       lines[idx] = line
     }
 
@@ -65,7 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       yearMonth: updated.yearMonth,
       categoryId: body.data.categoryId,
-      spentClosed: body.data.spentClosed,
+      remainingAdjustCents: adjust,
       indicators
     })
   } catch (err) {

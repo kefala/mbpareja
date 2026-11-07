@@ -3,7 +3,11 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
 import { AppPageLayout } from '@/components/app-page-layout'
 import { apiFetch } from '@/lib/client-fetch'
-import { formatCentsCurrency, parseEurosToCents } from '@/lib/money'
+import {
+  centsToEuros,
+  formatCentsCurrency,
+  parseEurosToCents
+} from '@/lib/money'
 import { labelYearMonth } from '@/lib/months'
 import type { MonthIndicators } from '@/types/domain'
 
@@ -26,6 +30,10 @@ function todayIso(): string {
   return `${y}-${m}-${day}`
 }
 
+function formatAdjustInput(cents: number): string {
+  return centsToEuros(cents).toFixed(2).replace('.', ',')
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState('')
@@ -33,7 +41,9 @@ export default function DashboardPage() {
   const [categoryId, setCategoryId] = useState('')
   const [date, setDate] = useState(todayIso())
   const [saving, setSaving] = useState(false)
-  const [togglingId, setTogglingId] = useState('')
+  const [editingId, setEditingId] = useState('')
+  const [expectedDraft, setExpectedDraft] = useState('')
+  const [savingAdjust, setSavingAdjust] = useState(false)
 
   const load = useCallback(async () => {
     setError('')
@@ -70,24 +80,64 @@ export default function DashboardPage() {
     }
   }
 
-  async function onToggleSpentClosed(categoryIdToToggle: string, next: boolean) {
+  function startEditExpected(categoryIdToEdit: string, remainingEffectiveCents: number) {
+    setEditingId(categoryIdToEdit)
+    setExpectedDraft(formatAdjustInput(remainingEffectiveCents))
+  }
+
+  async function saveExpected(categoryIdToSave: string, remainingRawCents: number, raw: string) {
     if (!data) return
-    setTogglingId(categoryIdToToggle)
+    setSavingAdjust(true)
     setError('')
     try {
-      const res = await apiFetch<{ indicators: MonthIndicators }>('/api/budgets/spent-closed', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          categoryId: categoryIdToToggle,
-          spentClosed: next,
-          yearMonth: data.yearMonth
-        })
-      })
+      const expectedCents = parseEurosToCents(raw || '0')
+      const remainingAdjustCents = expectedCents - remainingRawCents
+      const res = await apiFetch<{ indicators: MonthIndicators }>(
+        '/api/budgets/remaining-adjust',
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            categoryId: categoryIdToSave,
+            remainingAdjustCents,
+            yearMonth: data.yearMonth
+          })
+        }
+      )
       setData((prev) => (prev ? { ...prev, indicators: res.indicators } : prev))
+      setEditingId('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo actualizar')
+      setError(err instanceof Error ? err.message : 'No se pudo guardar el ajuste')
     } finally {
-      setTogglingId('')
+      setSavingAdjust(false)
+    }
+  }
+
+  async function setExpectedZero(categoryIdToSave: string, remainingRawCents: number) {
+    await saveExpected(categoryIdToSave, remainingRawCents, '0')
+  }
+
+  async function clearAdjust(categoryIdToSave: string) {
+    if (!data) return
+    setSavingAdjust(true)
+    setError('')
+    try {
+      const res = await apiFetch<{ indicators: MonthIndicators }>(
+        '/api/budgets/remaining-adjust',
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            categoryId: categoryIdToSave,
+            remainingAdjustCents: 0,
+            yearMonth: data.yearMonth
+          })
+        }
+      )
+      setData((prev) => (prev ? { ...prev, indicators: res.indicators } : prev))
+      setEditingId('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo quitar el ajuste')
+    } finally {
+      setSavingAdjust(false)
     }
   }
 
@@ -127,7 +177,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <div className="stat">
-              <span className="stat__label">Restante</span>
+              <span className="stat__label">Restante (bruto)</span>
               <span className="stat__value">
                 {ind ? formatCentsCurrency(ind.remainingTotalCents) : '—'}
               </span>
@@ -205,90 +255,132 @@ export default function DashboardPage() {
         <section className="panel">
           <h2>Por categoría</h2>
           <p className="muted" style={{ marginTop: 0 }}>
-            El candado marca «ya no gastaré más este mes»: el restante positivo deja de contar en
-            pendiente y margen. No cambia el presupuesto.
+            «Restante previsto» se puede ajustar si sabes que gastarás más o menos, sin tocar el
+            presupuesto. Pendiente y margen usan ese valor (solo positivos).
           </p>
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th aria-label="Cerrar gasto" />
-                  <th>Categoría</th>
-                  <th className="num">Presup.</th>
-                  <th className="num">Gastado</th>
-                  <th className="num">Restante</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ind?.byCategory.map((row) => (
-                  <tr
-                    key={row.categoryId}
-                    className={[
-                      row.overBudget ? 'is-over' : '',
-                      row.spentClosed ? 'is-spent-closed' : ''
-                    ]
-                      .filter(Boolean)
-                      .join(' ') || undefined}>
-                    <td className="cat-lock-cell">
-                      <button
-                        type="button"
-                        className={
-                          row.spentClosed
-                            ? 'btn-lock btn-lock--on'
-                            : 'btn-lock btn-lock--off'
-                        }
-                        aria-pressed={row.spentClosed}
-                        aria-label={
-                          row.spentClosed
-                            ? `Reabrir gasto de ${row.name}`
-                            : `Marcar ${row.name}: ya no gastaré más este mes`
-                        }
-                        title={
-                          row.spentClosed
-                            ? 'Ya no gastaré más (activo). Toca para reabrir.'
-                            : 'Marcar: ya no gastaré más este mes'
-                        }
-                        disabled={togglingId === row.categoryId}
-                        onClick={() =>
-                          void onToggleSpentClosed(row.categoryId, !row.spentClosed)
-                        }>
-                        <svg
-                          aria-hidden
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round">
-                          {row.spentClosed ? (
-                            <>
-                              <rect x="5" y="11" width="14" height="10" rx="2" />
-                              <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-                            </>
-                          ) : (
-                            <>
-                              <rect x="5" y="11" width="14" height="10" rx="2" />
-                              <path d="M8 11V8a4 4 0 0 1 7.5-1.8" />
-                            </>
-                          )}
-                        </svg>
-                      </button>
-                    </td>
-                    <td>
-                      {row.name}
-                      {row.spentClosed ? (
-                        <span className="spent-closed-tag"> cerrada</span>
-                      ) : null}
-                    </td>
-                    <td className="num">{formatCentsCurrency(row.budgetCents)}</td>
-                    <td className="num">{formatCentsCurrency(row.spentCents)}</td>
-                    <td className="num">{formatCentsCurrency(row.remainingCents)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="cat-list">
+            {ind?.byCategory.map((row) => {
+              const isEditing = editingId === row.categoryId
+              const hasAdjust = row.remainingAdjustCents !== 0
+              return (
+                <article
+                  key={row.categoryId}
+                  className={[
+                    'cat-card',
+                    row.overBudget ? 'cat-card--over' : '',
+                    hasAdjust ? 'cat-card--adjusted' : ''
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}>
+                  <header className="cat-card__head">
+                    <h3 className="cat-card__title">{row.name}</h3>
+                    {hasAdjust ? (
+                      <span className="cat-card__badge">ajustado</span>
+                    ) : null}
+                  </header>
+                  <div className="cat-card__grid">
+                    <div>
+                      <span className="cat-card__label">Presup.</span>
+                      <span className="cat-card__value">
+                        {formatCentsCurrency(row.budgetCents)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="cat-card__label">Gastado</span>
+                      <span className="cat-card__value">
+                        {formatCentsCurrency(row.spentCents)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="cat-card__label">Restante bruto</span>
+                      <span className="cat-card__value">
+                        {formatCentsCurrency(row.remainingRawCents)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="cat-card__expected">
+                    <label className="cat-card__label" htmlFor={`exp-${row.categoryId}`}>
+                      Restante previsto (€)
+                    </label>
+                    {isEditing ? (
+                      <div className="row" style={{ marginTop: 6 }}>
+                        <input
+                          id={`exp-${row.categoryId}`}
+                          className="cat-card__input"
+                          inputMode="decimal"
+                          value={expectedDraft}
+                          disabled={savingAdjust}
+                          onChange={(e) => setExpectedDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              void saveExpected(
+                                row.categoryId,
+                                row.remainingRawCents,
+                                expectedDraft
+                              )
+                            }
+                            if (e.key === 'Escape') setEditingId('')
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn--primary btn--sm"
+                          disabled={savingAdjust}
+                          onClick={() =>
+                            void saveExpected(
+                              row.categoryId,
+                              row.remainingRawCents,
+                              expectedDraft
+                            )
+                          }>
+                          OK
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
+                          disabled={savingAdjust}
+                          onClick={() => setEditingId('')}>
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="row" style={{ marginTop: 6 }}>
+                        <button
+                          type="button"
+                          className="cat-card__expected-btn"
+                          onClick={() =>
+                            startEditExpected(row.categoryId, row.remainingEffectiveCents)
+                          }>
+                          {formatCentsCurrency(row.remainingEffectiveCents)}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
+                          disabled={savingAdjust}
+                          title="Poner restante previsto a 0"
+                          onClick={() =>
+                            void setExpectedZero(row.categoryId, row.remainingRawCents)
+                          }>
+                          → 0
+                        </button>
+                        {hasAdjust ? (
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            disabled={savingAdjust}
+                            title="Quitar ajuste (volver al bruto)"
+                            onClick={() => void clearAdjust(row.categoryId)}>
+                            Reset
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                </article>
+              )
+            })}
           </div>
         </section>
       </AppPageLayout>
