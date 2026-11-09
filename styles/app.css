@@ -234,19 +234,25 @@ body {
   display: flex;
   align-items: center;
   padding: 0 12px;
+  overflow: hidden;
 }
 
 .date-compact__display {
+  position: relative;
+  z-index: 1;
   font-size: 16px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
   color: var(--ink);
   pointer-events: none;
+  white-space: nowrap;
 }
 
 .date-compact__native {
   position: absolute;
   inset: 0;
+  z-index: 2;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -254,14 +260,32 @@ body {
   margin: 0;
   padding: 0;
   border: 0;
-  opacity: 0.01;
+  opacity: 0;
   cursor: pointer;
   box-sizing: border-box;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: transparent;
+  background: transparent;
   color-scheme: light;
+  font-size: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.date-compact__native::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .date-compact__native:focus {
-  opacity: 0.02;
+  opacity: 0;
   outline: none;
 }
 
