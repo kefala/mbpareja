@@ -24,10 +24,12 @@ interface DashboardData {
 }
 
 type CategoryStatus = 'over' | 'ok' | 'zero'
+type CategoryBucket = 'open' | 'closed'
 
 interface CategoryGroup {
-  status: CategoryStatus
+  bucket: CategoryBucket
   title: string
+  hint: string
   rows: CategoryRowStats[]
 }
 
@@ -43,32 +45,59 @@ function formatAdjustInput(cents: number): string {
   return centsToEuros(cents).toFixed(2).replace('.', ',')
 }
 
+/** Color/badge: excedida / ok / previsto 0. */
 function categoryStatus(row: CategoryRowStats): CategoryStatus {
   if (row.spentCents > row.budgetCents || row.remainingEffectiveCents < 0) return 'over'
   if (row.remainingEffectiveCents === 0) return 'zero'
   return 'ok'
 }
 
+/**
+ * Cerrada = restante previsto efectivo 0 (sin pendiente).
+ * En curso = aún hay restante previsto > 0, o está excedida (sigue abierta).
+ */
+function categoryBucket(row: CategoryRowStats): CategoryBucket {
+  return row.remainingEffectiveCents === 0 ? 'closed' : 'open'
+}
+
 function statusLabel(status: CategoryStatus): string {
   if (status === 'over') return 'Excedida'
   if (status === 'zero') return 'Previsto 0'
-  return 'En curso'
+  return 'Ok'
+}
+
+function sortOpenRows(rows: CategoryRowStats[]): CategoryRowStats[] {
+  return [...rows].sort((a, b) => {
+    const aOver = categoryStatus(a) === 'over' ? 1 : 0
+    const bOver = categoryStatus(b) === 'over' ? 1 : 0
+    if (aOver !== bOver) return bOver - aOver
+    return a.name.localeCompare(b.name, 'es')
+  })
 }
 
 function groupCategories(rows: CategoryRowStats[]): CategoryGroup[] {
-  const over: CategoryRowStats[] = []
-  const ok: CategoryRowStats[] = []
-  const zero: CategoryRowStats[] = []
+  const open: CategoryRowStats[] = []
+  const closed: CategoryRowStats[] = []
   for (const row of rows) {
-    const s = categoryStatus(row)
-    if (s === 'over') over.push(row)
-    else if (s === 'zero') zero.push(row)
-    else ok.push(row)
+    if (categoryBucket(row) === 'closed') closed.push(row)
+    else open.push(row)
   }
+  closed.sort((a, b) => a.name.localeCompare(b.name, 'es'))
   const out: CategoryGroup[] = []
-  if (over.length) out.push({ status: 'over', title: 'Excedidas', rows: over })
-  if (ok.length) out.push({ status: 'ok', title: 'En curso', rows: ok })
-  if (zero.length) out.push({ status: 'zero', title: 'Restante previsto 0', rows: zero })
+  if (open.length)
+    out.push({
+      bucket: 'open',
+      title: 'En curso',
+      hint: 'Queda restante previsto > 0, o la categoría está excedida.',
+      rows: sortOpenRows(open)
+    })
+  if (closed.length)
+    out.push({
+      bucket: 'closed',
+      title: 'Cerradas',
+      hint: 'Restante previsto efectivo = 0 (sin pendiente para el margen).',
+      rows: closed
+    })
   return out
 }
 
@@ -292,17 +321,20 @@ export default function DashboardPage() {
         <section className="panel">
           <h2>Por categoría</h2>
           <p className="muted" style={{ marginTop: 0 }}>
-            Rojo = excedida · Verde = en curso · Gris = restante previsto 0. Puedes ajustar el
-            restante previsto sin tocar el presupuesto.
+            <strong>En curso</strong> = queda restante previsto o está excedida ·{' '}
+            <strong>Cerradas</strong> = restante previsto 0 (sin pendiente). Badges: rojo
+            excedida · verde ok · gris previsto 0. Puedes ajustar el restante sin tocar el
+            presupuesto.
           </p>
           <div className="cat-groups">
             {ind
               ? groupCategories(ind.byCategory).map((group) => (
-                  <div key={group.status} className="cat-group">
-                    <h3 className={`cat-group__title cat-group__title--${group.status}`}>
+                  <div key={group.bucket} className="cat-group">
+                    <h3 className={`cat-group__title cat-group__title--${group.bucket}`}>
                       {group.title}
                       <span className="cat-group__count">{group.rows.length}</span>
                     </h3>
+                    <p className="cat-group__hint">{group.hint}</p>
                     <ul className="cat-list">
                       {group.rows.map((row) => {
                         const isEditing = editingId === row.categoryId

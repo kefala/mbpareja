@@ -356,16 +356,20 @@ table.data tr.is-over td {
   gap: 8px;
 }
 
-.cat-group__title--over {
-  color: var(--danger);
-}
-
-.cat-group__title--ok {
+.cat-group__title--open {
   color: var(--ok);
 }
 
-.cat-group__title--zero {
+.cat-group__title--closed {
   color: #64748b;
+}
+
+.cat-group__hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.4;
 }
 
 .cat-group__count {
@@ -382,14 +386,14 @@ table.data tr.is-over td {
   color: #334155;
 }
 
-.cat-group__title--over .cat-group__count {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.cat-group__title--ok .cat-group__count {
+.cat-group__title--open .cat-group__count {
   background: #ecfdf5;
   color: var(--ok);
+}
+
+.cat-group__title--closed .cat-group__count {
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .cat-list {
