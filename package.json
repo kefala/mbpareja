@@ -14,6 +14,7 @@
     "next-auth": "^4.24.15",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "recharts": "^2.15.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {

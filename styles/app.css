@@ -579,6 +579,13 @@ table.data tr.is-over td {
   text-align: right;
 }
 
+.chart-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
 @media (min-width: 720px) {
   .app-bottom-nav__short {
     display: none;

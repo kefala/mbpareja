@@ -1,11 +1,23 @@
+import dynamic from 'next/dynamic'
 import Head from 'next/head'
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 
 import { AppPageLayout } from '@/components/app-page-layout'
+import type { CategoryBudgetSpentPoint } from '@/components/category-budget-spent-chart'
 import { CompactDateInput } from '@/components/compact-date-input'
 import { apiFetch } from '@/lib/client-fetch'
 import { centsToEuros, formatCentsCurrency, parseEurosToCents } from '@/lib/money'
 import { labelDateShort, labelYearMonthShort } from '@/lib/months'
+import type { CategoryRowStats, MonthIndicators } from '@/types/domain'
+
+const CategoryBudgetSpentChart = dynamic(
+  () =>
+    import('@/components/category-budget-spent-chart').then((m) => m.CategoryBudgetSpentChart),
+  {
+    ssr: false,
+    loading: () => <p className="muted">Cargando gráfico…</p>
+  }
+)
 
 interface Category {
   id: string
@@ -21,15 +33,31 @@ interface Expense {
   yearMonth: string
 }
 
+interface DashboardData {
+  yearMonth: string
+  indicators: MonthIndicators
+}
+
 function todayIso(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function sortCategoryRows(rows: CategoryRowStats[]): CategoryRowStats[] {
+  return [...rows].sort((a, b) => {
+    const aOver = a.spentCents > a.budgetCents ? 1 : 0
+    const bOver = b.spentCents > b.budgetCents ? 1 : 0
+    if (aOver !== bOver) return bOver - aOver
+    if (b.spentCents !== a.spentCents) return b.spentCents - a.spentCents
+    return a.name.localeCompare(b.name, 'es')
+  })
 }
 
 export default function GastosPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [yearMonth, setYearMonth] = useState('')
+  const [byCategory, setByCategory] = useState<CategoryRowStats[]>([])
   const [amount, setAmount] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [date, setDate] = useState(todayIso())
@@ -41,10 +69,11 @@ export default function GastosPage() {
     const [exp, cats, dash] = await Promise.all([
       apiFetch<{ yearMonth: string; expenses: Expense[] }>('/api/expenses'),
       apiFetch<{ categories: Category[] }>('/api/categories'),
-      apiFetch<{ yearMonth: string }>('/api/dashboard')
+      apiFetch<DashboardData>('/api/dashboard')
     ])
     setExpenses(exp.expenses)
     setYearMonth(exp.yearMonth || dash.yearMonth)
+    setByCategory(sortCategoryRows(dash.indicators.byCategory))
     setCategories(cats.categories)
     setCategoryId((prev) => prev || cats.categories[0]?.id || '')
   }, [])
@@ -52,6 +81,29 @@ export default function GastosPage() {
   useEffect(() => {
     void load().catch((e) => setError(e instanceof Error ? e.message : 'Error'))
   }, [load])
+
+  const chartRows: CategoryBudgetSpentPoint[] = useMemo(
+    () =>
+      byCategory
+        .filter((r) => r.budgetCents > 0 || r.spentCents > 0)
+        .map((r) => ({
+          name: r.name,
+          budgetCents: r.budgetCents,
+          spentCents: r.spentCents,
+          over: r.spentCents > r.budgetCents
+        })),
+    [byCategory]
+  )
+
+  const totals = useMemo(() => {
+    let budget = 0
+    let spent = 0
+    for (const r of byCategory) {
+      budget += r.budgetCents
+      spent += r.spentCents
+    }
+    return { budget, spent, diff: budget - spent }
+  }, [byCategory])
 
   function startEdit(exp: Expense) {
     setEditingId(exp.id)
@@ -145,12 +197,7 @@ export default function GastosPage() {
               </div>
               <div className="field">
                 <label htmlFor="g-date">Fecha</label>
-                <CompactDateInput
-                  id="g-date"
-                  value={date}
-                  onChange={setDate}
-                  required
-                />
+                <CompactDateInput id="g-date" value={date} onChange={setDate} required />
               </div>
             </div>
             <div className="row">
@@ -164,6 +211,78 @@ export default function GastosPage() {
               ) : null}
             </div>
           </form>
+        </section>
+
+        <section className="panel">
+          <h2>Por categoría (mes)</h2>
+          <div className="stats-grid" style={{ marginBottom: 12 }}>
+            <div className="stat">
+              <span className="stat__label">Presupuesto</span>
+              <span className="stat__value">{formatCentsCurrency(totals.budget)}</span>
+            </div>
+            <div className="stat">
+              <span className="stat__label">Gastado</span>
+              <span className="stat__value">{formatCentsCurrency(totals.spent)}</span>
+            </div>
+            <div className={totals.diff < 0 ? 'stat stat--danger' : 'stat stat--ok'}>
+              <span className="stat__label">Diferencia</span>
+              <span className="stat__value">{formatCentsCurrency(totals.diff)}</span>
+            </div>
+          </div>
+          <ul className="cat-list">
+            {byCategory.map((row) => {
+              const over = row.spentCents > row.budgetCents
+              const diff = row.budgetCents - row.spentCents
+              return (
+                <li
+                  key={row.categoryId}
+                  className={over ? 'cat-row cat-row--over' : 'cat-row cat-row--ok'}>
+                  <header className="cat-row__head">
+                    <div className="cat-row__name-wrap">
+                      <span className="cat-row__name">{row.name}</span>
+                      {over ? (
+                        <span className="cat-status cat-status--over">Excedida</span>
+                      ) : null}
+                    </div>
+                  </header>
+                  <div className="cat-row__grid">
+                    <div>
+                      <span className="cat-row__label">Presup.</span>
+                      <span className="cat-row__value">
+                        {formatCentsCurrency(row.budgetCents)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="cat-row__label">Gastado</span>
+                      <span
+                        className={
+                          over ? 'cat-row__value cat-row__value--danger' : 'cat-row__value'
+                        }>
+                        {formatCentsCurrency(row.spentCents)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="cat-row__label">Dif.</span>
+                      <span
+                        className={
+                          diff < 0 ? 'cat-row__value cat-row__value--danger' : 'cat-row__value'
+                        }>
+                        {formatCentsCurrency(diff)}
+                      </span>
+                    </div>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+          {byCategory.length === 0 ? (
+            <p className="muted">Sin categorías con presupuesto o gastos.</p>
+          ) : null}
+        </section>
+
+        <section className="panel">
+          <h2>Presupuesto vs gastado</h2>
+          <CategoryBudgetSpentChart rows={chartRows} />
         </section>
 
         <section className="panel">
