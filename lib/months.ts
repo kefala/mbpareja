@@ -66,9 +66,10 @@ export function labelYearMonthShort(yearMonth: string): string {
   return `${ms}/${ys!.slice(2)}`
 }
 
-/** ISO YYYY-MM-DD → DD/MM/YY para UI compacta */
+/** ISO YYYY-MM-DD → DD/MM/YY para UI compacta (ej. 2026-11-09 → 09/11/26) */
 export function labelDateShort(isoDate: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim())
   if (!m) return isoDate
-  return `${m[2]}/${m[3]}/${m[1]!.slice(2)}`
+  const [, year, month, day] = m
+  return `${day}/${month}/${year!.slice(2)}`
 }
